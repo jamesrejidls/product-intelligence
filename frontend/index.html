@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Product Intelligence</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+  .pp-rank { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+  .fade-in { animation: fade .25s ease-out; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px);} to { opacity:1; transform:none;} }
+  .spinner { border: 3px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; width: 20px; height: 20px; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { animation: toastIn .2s ease-out; }
+  @keyframes toastIn { from { opacity:0; transform: translateY(-8px);} to { opacity:1; transform:none;} }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+<!-- Toast container -->
+<div id="toasts" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+<!-- ============================ AUTH SCREEN ============================ -->
+<div id="auth-screen" class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8 fade-in">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-10 h-10 rounded-xl pp-rank flex items-center justify-center text-white font-bold">PI</div>
+      <div>
+        <h1 class="text-xl font-semibold">Product Intelligence</h1>
+        <p class="text-sm text-slate-500">Customer signals → product decisions</p>
+      </div>
+    </div>
+    <div class="flex gap-1 mb-5 bg-slate-100 p-1 rounded-lg">
+      <button id="tab-login" class="flex-1 py-2 rounded-md text-sm font-medium bg-white shadow-sm">Sign in</button>
+      <button id="tab-register" class="flex-1 py-2 rounded-md text-sm font-medium text-slate-600">Create account</button>
+    </div>
+    <form id="auth-form" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+        <input id="auth-email" type="email" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="you@company.com" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+        <input id="auth-password" type="password" required minlength="6" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="At least 6 characters" />
+      </div>
+      <button id="auth-submit" type="submit" class="w-full py-2.5 rounded-lg pp-rank text-white font-medium hover:opacity-90 transition flex items-center justify-center gap-2">
+        <span id="auth-submit-text">Sign in</span>
+      </button>
+      <p id="auth-error" class="text-sm text-rose-600 hidden"></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============================ APP SHELL ============================ -->
+<div id="app-shell" class="hidden">
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-60 bg-white border-r border-slate-200 flex flex-col">
+      <div class="p-5 border-b border-slate-200">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg pp-rank flex items-center justify-center text-white font-bold text-sm">PI</div>
+          <div class="font-semibold">Product Intel</div>
+        </div>
+      </div>
+      <nav class="flex-1 p-3 space-y-1">
+        <button data-view="dashboard" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 flex items-center gap-2">📊 Dashboard</button>
+        <button data-view="datasets" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 flex items-center gap-2">📁 Datasets</button>
+        <button data-view="query" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 flex items-center gap-2">💬 Ask anything</button>
+        <button data-view="prds" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 flex items-center gap-2">📄 PRDs</button>
+      </nav>
+      <div class="p-3 border-t border-slate-200">
+        <div id="user-email" class="text-xs text-slate-500 mb-2 truncate"></div>
+        <button id="logout-btn" class="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-100">Sign out</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 overflow-auto scroll-thin">
+      <div id="view-container" class="p-8 max-w-6xl mx-auto"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ============================ TEMPLATES ============================ -->
+
+<!-- Dashboard -->
+<template id="tpl-dashboard">
+  <div class="fade-in">
+    <div class="flex items-end justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-semibold">Insight Dashboard</h2>
+        <p class="text-slate-500 text-sm mt-1">Top pain points, sentiment, and voice of customer.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <select id="dashboard-dataset" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+        <button id="dashboard-run" class="px-4 py-2 pp-rank text-white text-sm font-medium rounded-lg hover:opacity-90 flex items-center gap-2">
+          <span>Run AI analysis</span>
+        </button>
+      </div>
+    </div>
+    <div id="dashboard-body"></div>
+  </div>
+</template>
+
+<!-- Empty state -->
+<template id="tpl-empty">
+  <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
+    <div class="text-5xl mb-3">📊</div>
+    <h3 class="font-medium text-slate-700"><span data-slot="title">Nothing yet</span></h3>
+    <p class="text-sm text-slate-500 mt-1"><span data-slot="subtitle">Get started by uploading data.</span></p>
+  </div>
+</template>
+
+<!-- Datasets view -->
+<template id="tpl-datasets">
+  <div class="fade-in">
+    <div class="flex items-end justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-semibold">Datasets</h2>
+        <p class="text-slate-500 text-sm mt-1">Upload customer feedback as CSV or paste it directly.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+      <!-- CSV upload -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6">
+        <h3 class="font-semibold mb-1">Upload CSV</h3>
+        <p class="text-sm text-slate-500 mb-4">We auto-detect the feedback column, deduplicate, and clean.</p>
+        <label class="block border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition">
+          <input type="file" id="csv-input" accept=".csv,.tsv,.txt" class="hidden" />
+          <div class="text-3xl mb-2">📤</div>
+          <div class="font-medium">Click to choose a CSV</div>
+          <div class="text-xs text-slate-500 mt-1">Or drag a .csv / .tsv file</div>
+        </label>
+      </div>
+
+      <!-- Text paste -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6">
+        <h3 class="font-semibold mb-1">Paste raw text</h3>
+        <p class="text-sm text-slate-500 mb-4">One feedback per line, or separate by blank lines.</p>
+        <input id="paste-name" type="text" class="w-full px-3 py-2 mb-2 border border-slate-300 rounded-lg text-sm" placeholder="Dataset name (e.g. Q3 support tickets)" />
+        <textarea id="paste-text" rows="6" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" placeholder="The login button doesn't work on Safari.
+Pricing page is confusing.
+The mobile app crashes when uploading photos."></textarea>
+        <button id="paste-save" class="mt-3 w-full px-4 py-2 pp-rank text-white text-sm font-medium rounded-lg hover:opacity-90">Create dataset</button>
+      </div>
+    </div>
+
+    <h3 class="font-semibold mb-3">Your datasets</h3>
+    <div id="datasets-list" class="space-y-2"></div>
+  </div>
+</template>
+
+<!-- CSV preview modal -->
+<template id="tpl-csv-preview">
+  <div class="bg-white border border-slate-200 rounded-2xl p-6 mb-6 fade-in">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <h3 class="font-semibold">Preview &amp; confirm</h3>
+        <p class="text-sm text-slate-500">We cleaned and deduplicated. Confirm the columns to use.</p>
+      </div>
+      <button id="preview-cancel" class="text-sm text-slate-500 hover:text-slate-700">✕ Cancel</button>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+      <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Total rows</div><div class="font-semibold text-lg" data-slot="total"></div></div>
+      <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Removed empties</div><div class="font-semibold text-lg" data-slot="cleaned"></div></div>
+      <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Duplicates removed</div><div class="font-semibold text-lg" data-slot="dupes"></div></div>
+      <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Detected text col</div><div class="font-semibold text-sm break-all" data-slot="textcol"></div></div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Dataset name</label>
+        <input id="preview-name" type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Feedback text column</label>
+        <select id="preview-textcol" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">User label column (optional)</label>
+        <select id="preview-labelcol" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+      </div>
+    </div>
+    <div class="border border-slate-200 rounded-lg overflow-hidden mb-4">
+      <div class="overflow-x-auto scroll-thin">
+        <table class="text-sm w-full" id="preview-table"></table>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button id="preview-confirm" class="px-4 py-2 pp-rank text-white font-medium rounded-lg text-sm hover:opacity-90">Save dataset</button>
+    </div>
+  </div>
+</template>
+
+<!-- Query view -->
+<template id="tpl-query">
+  <div class="fade-in">
+    <h2 class="text-2xl font-semibold mb-1">Ask your customers anything</h2>
+    <p class="text-slate-500 text-sm mb-6">Type a question. Get an answer grounded in your data, with citations to actual users.</p>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 mb-6">
+      <div class="flex gap-2 mb-3">
+        <select id="query-dataset" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"></select>
+      </div>
+      <div class="flex gap-2">
+        <input id="query-input" type="text" class="flex-1 px-4 py-3 border border-slate-300 rounded-lg" placeholder="Why are users churning? What do power users love?" />
+        <button id="query-submit" class="px-5 py-3 pp-rank text-white font-medium rounded-lg hover:opacity-90">Ask</button>
+      </div>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button class="query-suggest text-xs px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200">Why are users churning?</button>
+        <button class="query-suggest text-xs px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200">What do power users love?</button>
+        <button class="query-suggest text-xs px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200">What's the #1 source of frustration?</button>
+        <button class="query-suggest text-xs px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200">What feature is most requested?</button>
+      </div>
+    </div>
+
+    <div id="query-results"></div>
+  </div>
+</template>
+
+<!-- PRDs view -->
+<template id="tpl-prds">
+  <div class="fade-in">
+    <h2 class="text-2xl font-semibold mb-1">PRDs</h2>
+    <p class="text-slate-500 text-sm mb-6">Generated from insights. Click any PRD to view, generate dev tasks, or export.</p>
+    <div id="prds-list" class="space-y-2"></div>
+  </div>
+</template>
+
+<!-- PRD detail view -->
+<template id="tpl-prd-detail">
+  <div class="fade-in">
+    <button id="prd-back" class="text-sm text-slate-500 hover:text-slate-800 mb-3">← Back to PRDs</button>
+    <div class="bg-white border border-slate-200 rounded-2xl p-7">
+      <h2 class="text-2xl font-semibold mb-1" data-slot="title"></h2>
+      <p class="text-xs text-slate-500 mb-4" data-slot="meta"></p>
+      <div class="flex flex-wrap gap-2 mb-6">
+        <button id="prd-export-pdf" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50">⬇️ Export PDF</button>
+        <button id="prd-export-md" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50">⬇️ Export Markdown</button>
+        <button id="prd-gen-tasks" class="px-3 py-1.5 text-sm pp-rank text-white rounded-lg hover:opacity-90">⚙️ Generate dev tasks</button>
+      </div>
+
+      <section class="mb-6">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">Problem statement</h3>
+        <p class="text-slate-800 leading-relaxed" data-slot="problem"></p>
+      </section>
+      <section class="mb-6">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">Who is affected</h3>
+        <p class="text-slate-800 leading-relaxed" data-slot="who"></p>
+      </section>
+      <section class="mb-6">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">Success metrics</h3>
+        <ul class="list-disc list-inside space-y-1" data-slot="metrics"></ul>
+      </section>
+      <section class="mb-6">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">User stories</h3>
+        <ul class="list-disc list-inside space-y-1" data-slot="stories"></ul>
+      </section>
+      <section class="mb-6">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">Acceptance criteria</h3>
+        <ul class="list-disc list-inside space-y-1" data-slot="ac"></ul>
+      </section>
+
+      <section id="prd-tasks-section" class="hidden">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Engineering tasks</h3>
+        <div id="prd-tasks-list" class="space-y-3"></div>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script>
+// ============================================================
+//   API LAYER
+// ============================================================
+const API = {
+  base: '/api',
+  token() { return localStorage.getItem('token'); },
+  setToken(t) { localStorage.setItem('token', t); },
+  clearToken() { localStorage.removeItem('token'); },
+
+  async req(method, path, body, isForm = false) {
+    const headers = {};
+    const token = this.token();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    if (!isForm && body !== undefined) headers['Content-Type'] = 'application/json';
+
+    const res = await fetch(this.base + path, {
+      method,
+      headers,
+      body: body === undefined ? undefined : (isForm ? body : JSON.stringify(body)),
+    });
+    if (res.status === 401) {
+      this.clearToken();
+      showAuth();
+      throw new Error('Not authenticated');
+    }
+    const ct = res.headers.get('content-type') || '';
+    let data;
+    if (ct.includes('application/json')) data = await res.json();
+    else data = await res.text();
+    if (!res.ok) {
+      const msg = (data && data.detail) ? data.detail : (typeof data === 'string' ? data : 'Request failed');
+      throw new Error(msg);
+    }
+    return data;
+  },
+  get(p) { return this.req('GET', p); },
+  post(p, body) { return this.req('POST', p, body); },
+  del(p) { return this.req('DELETE', p); },
+  postForm(p, formData) { return this.req('POST', p, formData, true); },
+};
+
+// ============================================================
+//   STATE + ROUTER
+// ============================================================
+const state = {
+  user: null,
+  view: 'dashboard',
+  datasets: [],
+  selectedDatasetId: null,
+  currentReport: null,
+  currentPRDId: null,
+  pendingPreview: null,
+};
+
+function showAuth() {
+  $('#app-shell').classList.add('hidden');
+  $('#auth-screen').classList.remove('hidden');
+}
+function showApp() {
+  $('#auth-screen').classList.add('hidden');
+  $('#app-shell').classList.remove('hidden');
+}
+
+// ============================================================
+//   UTIL
+// ============================================================
+function $(sel, root = document) { return root.querySelector(sel); }
+function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+function el(html) {
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
+function clone(id) {
+  const t = document.getElementById(id);
+  return t.content.firstElementChild.cloneNode(true);
+}
+function escapeHTML(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'}); }
+  catch { return iso; }
+}
+function toast(msg, type='info') {
+  const colors = {info:'bg-slate-800', error:'bg-rose-600', success:'bg-emerald-600'};
+  const t = el(`<div class="toast text-white text-sm px-4 py-2 rounded-lg shadow-lg ${colors[type]||colors.info}">${escapeHTML(msg)}</div>`);
+  $('#toasts').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function setButtonLoading(btn, loading, idleText) {
+  if (!btn) return;
+  if (loading) {
+    btn.disabled = true;
+    btn.dataset.idleText = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner inline-block align-middle"></span> <span class="ml-2 align-middle">Working…</span>`;
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = btn.dataset.idleText || idleText || 'Submit';
+  }
+}
+
+// ============================================================
+//   AUTH SCREEN
+// ============================================================
+let authMode = 'login';
+$('#tab-login').addEventListener('click', () => { authMode = 'login'; updateAuthTabs(); });
+$('#tab-register').addEventListener('click', () => { authMode = 'register'; updateAuthTabs(); });
+function updateAuthTabs() {
+  const isLogin = authMode === 'login';
+  $('#tab-login').className = `flex-1 py-2 rounded-md text-sm font-medium ${isLogin ? 'bg-white shadow-sm' : 'text-slate-600'}`;
+  $('#tab-register').className = `flex-1 py-2 rounded-md text-sm font-medium ${!isLogin ? 'bg-white shadow-sm' : 'text-slate-600'}`;
+  $('#auth-submit-text').textContent = isLogin ? 'Sign in' : 'Create account';
+}
+$('#auth-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('#auth-email').value.trim();
+  const password = $('#auth-password').value;
+  const errEl = $('#auth-error');
+  errEl.classList.add('hidden');
+  const submitBtn = $('#auth-submit');
+  submitBtn.disabled = true;
+  try {
+    const path = authMode === 'login' ? '/auth/login' : '/auth/register';
+    const data = await API.post(path, { email, password });
+    API.setToken(data.access_token);
+    state.user = { email: data.email };
+    await bootApp();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+// ============================================================
+//   APP BOOT
+// ============================================================
+$('#logout-btn').addEventListener('click', () => {
+  API.clearToken();
+  state.user = null;
+  showAuth();
+});
+
+async function bootApp() {
+  try {
+    if (!state.user) {
+      const me = await API.get('/auth/me');
+      state.user = me;
+    }
+    $('#user-email').textContent = state.user.email;
+    showApp();
+    await refreshDatasets();
+    navigate('dashboard');
+  } catch (e) {
+    showAuth();
+  }
+}
+
+$$('.nav-btn').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.view)));
+
+function navigate(view) {
+  state.view = view;
+  $$('.nav-btn').forEach(b => {
+    if (b.dataset.view === view) b.classList.add('bg-indigo-50','text-indigo-700');
+    else b.classList.remove('bg-indigo-50','text-indigo-700');
+  });
+  if (view === 'dashboard') renderDashboard();
+  else if (view === 'datasets') renderDatasets();
+  else if (view === 'query') renderQuery();
+  else if (view === 'prds') renderPRDsList();
+}
+
+// ============================================================
+//   DATASETS
+// ============================================================
+async function refreshDatasets() {
+  state.datasets = await API.get('/intake/datasets');
+  if (state.datasets.length && !state.selectedDatasetId) {
+    state.selectedDatasetId = state.datasets[0].id;
+  }
+}
+
+function renderDatasets() {
+  const root = $('#view-container');
+  root.innerHTML = '';
+  root.appendChild(clone('tpl-datasets'));
+
+  $('#csv-input').addEventListener('change', handleCSVUpload);
+
+  // Drag & drop
+  const dropLabel = $('#csv-input').closest('label');
+  ['dragover', 'dragenter'].forEach(ev => dropLabel.addEventListener(ev, e => {
+    e.preventDefault(); dropLabel.classList.add('border-indigo-400','bg-indigo-50/30');
+  }));
+  ['dragleave', 'drop'].forEach(ev => dropLabel.addEventListener(ev, e => {
+    e.preventDefault(); dropLabel.classList.remove('border-indigo-400','bg-indigo-50/30');
+  }));
+  dropLabel.addEventListener('drop', e => {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      $('#csv-input').files = e.dataTransfer.files;
+      handleCSVUpload();
+    }
+  });
+
+  $('#paste-save').addEventListener('click', handlePasteSave);
+  renderDatasetList();
+}
+
+async function handleCSVUpload() {
+  const file = $('#csv-input').files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    toast('Uploading…');
+    const preview = await API.postForm('/intake/upload-csv', fd);
+    state.pendingPreview = preview;
+    state.pendingPreview.suggestedName = file.name.replace(/\.[^.]+$/, '');
+    renderPreview();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    $('#csv-input').value = '';
+  }
+}
+
+function renderPreview() {
+  const p = state.pendingPreview;
+  if (!p) return;
+
+  // Insert preview before datasets list
+  const existing = $('#preview-card');
+  if (existing) existing.remove();
+
+  const node = clone('tpl-csv-preview');
+  node.id = 'preview-card';
+  $('[data-slot=total]', node).textContent = p.total_rows;
+  $('[data-slot=cleaned]', node).textContent = p.cleaned_count;
+  $('[data-slot=dupes]', node).textContent = p.duplicate_count;
+  $('[data-slot=textcol]', node).textContent = p.detected_text_column;
+
+  const nameInput = $('#preview-name', node);
+  nameInput.value = p.suggestedName || 'New dataset';
+
+  const textSel = $('#preview-textcol', node);
+  const labelSel = $('#preview-labelcol', node);
+  labelSel.appendChild(el(`<option value="">(none)</option>`));
+  for (const c of p.columns) {
+    textSel.appendChild(el(`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`));
+    labelSel.appendChild(el(`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`));
+  }
+  textSel.value = p.detected_text_column;
+  if (p.detected_label_column) labelSel.value = p.detected_label_column;
+
+  // Render preview table
+  const table = $('#preview-table', node);
+  const thead = el('<thead class="bg-slate-50"><tr></tr></thead>');
+  for (const c of p.columns) {
+    thead.querySelector('tr').appendChild(el(`<th class="px-3 py-2 text-left text-xs uppercase text-slate-500 font-medium">${escapeHTML(c)}</th>`));
+  }
+  table.appendChild(thead);
+  const tbody = el('<tbody></tbody>');
+  for (const row of p.preview_rows) {
+    const tr = el('<tr class="border-t border-slate-100"></tr>');
+    for (const c of p.columns) {
+      const val = row[c] ?? '';
+      tr.appendChild(el(`<td class="px-3 py-2 text-slate-700 align-top">${escapeHTML(String(val).slice(0, 200))}</td>`));
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+
+  $('#preview-cancel', node).addEventListener('click', () => {
+    state.pendingPreview = null;
+    node.remove();
+  });
+  $('#preview-confirm', node).addEventListener('click', async () => {
+    const btn = $('#preview-confirm', node);
+    setButtonLoading(btn, true);
+    try {
+      await API.post('/intake/save', {
+        upload_token: p.upload_token,
+        name: nameInput.value.trim() || 'Untitled',
+        text_column: textSel.value,
+        label_column: labelSel.value || null,
+      });
+      toast('Dataset saved', 'success');
+      state.pendingPreview = null;
+      await refreshDatasets();
+      renderDatasets();
+    } catch (e) {
+      toast(e.message, 'error');
+      setButtonLoading(btn, false);
+    }
+  });
+
+  // Insert at top of view
+  const root = $('#view-container');
+  root.insertBefore(node, root.firstChild);
+}
+
+async function handlePasteSave() {
+  const name = $('#paste-name').value.trim();
+  const text = $('#paste-text').value.trim();
+  if (!text) { toast('Paste some text first', 'error'); return; }
+  const btn = $('#paste-save');
+  setButtonLoading(btn, true);
+  try {
+    await API.post('/intake/paste', { name: name || 'Pasted feedback', text });
+    toast('Dataset created', 'success');
+    $('#paste-name').value = '';
+    $('#paste-text').value = '';
+    await refreshDatasets();
+    renderDatasetList();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+function renderDatasetList() {
+  const list = $('#datasets-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!state.datasets.length) {
+    const empty = clone('tpl-empty');
+    $('[data-slot=title]', empty).textContent = 'No datasets yet';
+    $('[data-slot=subtitle]', empty).textContent = 'Upload a CSV or paste feedback to get started.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const d of state.datasets) {
+    const card = el(`
+      <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-slate-300 transition">
+        <div>
+          <div class="font-medium">${escapeHTML(d.name)}</div>
+          <div class="text-xs text-slate-500 mt-0.5">${d.row_count} items · ${escapeHTML(d.source_type.toUpperCase())} · ${fmtDate(d.created_at)}</div>
+        </div>
+        <div class="flex gap-2">
+          <button data-id="${d.id}" class="ds-analyze px-3 py-1.5 text-sm pp-rank text-white rounded-lg hover:opacity-90">Analyze</button>
+          <button data-id="${d.id}" class="ds-delete px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200">Delete</button>
+        </div>
+      </div>`);
+    list.appendChild(card);
+  }
+  $$('.ds-analyze').forEach(b => b.addEventListener('click', () => {
+    state.selectedDatasetId = parseInt(b.dataset.id, 10);
+    navigate('dashboard');
+    setTimeout(runAnalysis, 50);
+  }));
+  $$('.ds-delete').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Delete this dataset and all its insights?')) return;
+    try {
+      await API.del('/intake/datasets/' + b.dataset.id);
+      await refreshDatasets();
+      renderDatasetList();
+      toast('Deleted', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }));
+}
+
+// ============================================================
+//   DASHBOARD
+// ============================================================
+let sentimentChart = null;
+
+function renderDashboard() {
+  const root = $('#view-container');
+  root.innerHTML = '';
+  root.appendChild(clone('tpl-dashboard'));
+
+  const sel = $('#dashboard-dataset');
+  if (!state.datasets.length) {
+    sel.innerHTML = '<option>No datasets yet</option>';
+    sel.disabled = true;
+    $('#dashboard-run').disabled = true;
+    const empty = clone('tpl-empty');
+    $('[data-slot=title]', empty).textContent = 'No datasets to analyze';
+    $('[data-slot=subtitle]', empty).innerHTML = 'Go to <a class="text-indigo-600 underline" href="#" id="go-datasets">Datasets</a> to upload feedback.';
+    $('#dashboard-body').appendChild(empty);
+    setTimeout(() => { const lk = $('#go-datasets'); if (lk) lk.addEventListener('click', e => { e.preventDefault(); navigate('datasets'); }); }, 0);
+    return;
+  }
+
+  for (const d of state.datasets) {
+    sel.appendChild(el(`<option value="${d.id}">${escapeHTML(d.name)} (${d.row_count})</option>`));
+  }
+  sel.value = state.selectedDatasetId || state.datasets[0].id;
+  state.selectedDatasetId = parseInt(sel.value, 10);
+
+  sel.addEventListener('change', async () => {
+    state.selectedDatasetId = parseInt(sel.value, 10);
+    await loadStoredReport();
+  });
+  $('#dashboard-run').addEventListener('click', runAnalysis);
+
+  loadStoredReport();
+}
+
+async function loadStoredReport() {
+  const body = $('#dashboard-body');
+  body.innerHTML = '<div class="text-slate-500 text-sm">Loading…</div>';
+  try {
+    const report = await API.get('/insights/datasets/' + state.selectedDatasetId);
+    state.currentReport = report;
+    renderReport(report);
+  } catch (e) {
+    state.currentReport = null;
+    body.innerHTML = '';
+    const empty = clone('tpl-empty');
+    $('[data-slot=title]', empty).textContent = 'No analysis yet';
+    $('[data-slot=subtitle]', empty).textContent = 'Click "Run AI analysis" above to surface pain points and sentiment.';
+    body.appendChild(empty);
+  }
+}
+
+async function runAnalysis() {
+  if (!state.selectedDatasetId) return;
+  const btn = $('#dashboard-run');
+  setButtonLoading(btn, true);
+  $('#dashboard-body').innerHTML = `<div class="bg-white border border-slate-200 rounded-2xl p-12 text-center">
+    <div class="spinner mx-auto mb-3"></div>
+    <div class="text-slate-700 font-medium">Analyzing your customers…</div>
+    <div class="text-xs text-slate-500 mt-1">This usually takes 10-30 seconds.</div>
+  </div>`;
+  try {
+    const report = await API.post('/insights/datasets/' + state.selectedDatasetId + '/run');
+    state.currentReport = report;
+    renderReport(report);
+    toast('Analysis complete', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+    $('#dashboard-body').innerHTML = `<div class="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-4 text-sm">${escapeHTML(e.message)}</div>`;
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+function renderReport(report) {
+  const body = $('#dashboard-body');
+  body.innerHTML = '';
+
+  // KPI row
+  const kpiRow = el(`
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">Feedback items</div>
+        <div class="text-2xl font-semibold mt-1">${report.total_feedback}</div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">Pain points found</div>
+        <div class="text-2xl font-semibold mt-1">${report.pain_points.length}</div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">Negative sentiment</div>
+        <div class="text-2xl font-semibold mt-1 text-rose-600">${report.sentiment.negative ?? 0}%</div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">Positive sentiment</div>
+        <div class="text-2xl font-semibold mt-1 text-emerald-600">${report.sentiment.positive ?? 0}%</div>
+      </div>
+    </div>`);
+  body.appendChild(kpiRow);
+
+  // Two-column: pain points (left) + sentiment+trends+VOC (right)
+  const grid = el(`<div class="grid grid-cols-1 lg:grid-cols-3 gap-5"></div>`);
+  const left = el(`<div class="lg:col-span-2 space-y-4"></div>`);
+  const right = el(`<div class="space-y-5"></div>`);
+  grid.appendChild(left); grid.appendChild(right);
+  body.appendChild(grid);
+
+  // Pain points
+  const ppHeader = el(`<h3 class="font-semibold mb-1">Top pain points</h3>`);
+  left.appendChild(ppHeader);
+  if (!report.pain_points.length) {
+    left.appendChild(el(`<div class="bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-500">No pain points surfaced.</div>`));
+  }
+  for (const pp of report.pain_points) {
+    const card = el(`
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-lg pp-rank text-white flex items-center justify-center font-bold flex-shrink-0">#${pp.rank}</div>
+          <div class="flex-1">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="font-semibold text-lg leading-snug">${escapeHTML(pp.title)}</div>
+                <div class="text-xs text-slate-500 mt-1">
+                  <span class="inline-block bg-slate-100 px-2 py-0.5 rounded-full mr-1">${escapeHTML(pp.affected_users || 'Affected users')}</span>
+                  <span class="inline-block bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mr-1">${escapeHTML(pp.emotional_tone || 'Tone')}</span>
+                  <span class="inline-block bg-slate-100 px-2 py-0.5 rounded-full">${pp.frequency} mention${pp.frequency===1?'':'s'}</span>
+                </div>
+              </div>
+              <button data-id="${pp.id}" class="prd-gen-btn px-3 py-1.5 text-xs bg-slate-900 text-white rounded-lg hover:bg-slate-800 whitespace-nowrap">📄 Generate PRD</button>
+            </div>
+            <p class="text-slate-700 mt-3 text-sm leading-relaxed">${escapeHTML(pp.description)}</p>
+            <div class="mt-3 p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
+              <div class="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1">Recommendation</div>
+              <div class="text-sm text-slate-800">${escapeHTML(pp.recommendation)}</div>
+            </div>
+            ${pp.citations && pp.citations.length ? `
+            <details class="mt-3">
+              <summary class="text-xs text-slate-600 cursor-pointer hover:text-slate-900">📌 ${pp.citations.length} supporting quote${pp.citations.length===1?'':'s'}</summary>
+              <div class="mt-2 space-y-2">
+                ${pp.citations.slice(0, 8).map(c => `
+                  <blockquote class="border-l-2 border-slate-300 pl-3 py-1 text-sm text-slate-700 italic">
+                    "${escapeHTML(c.content.length > 280 ? c.content.slice(0,280)+'…' : c.content)}"
+                    ${c.user_label ? `<div class="text-xs text-slate-500 not-italic mt-1">— ${escapeHTML(c.user_label)}</div>` : ''}
+                  </blockquote>
+                `).join('')}
+              </div>
+            </details>` : ''}
+          </div>
+        </div>
+      </div>`);
+    left.appendChild(card);
+  }
+  $$('.prd-gen-btn', left).forEach(b => b.addEventListener('click', () => generatePRDFromInsight(parseInt(b.dataset.id, 10))));
+
+  // Sentiment donut
+  const sentBox = el(`
+    <div class="bg-white border border-slate-200 rounded-2xl p-5">
+      <div class="text-sm font-semibold mb-3">Sentiment</div>
+      <div class="relative h-44"><canvas id="sentiment-chart"></canvas></div>
+      <div class="grid grid-cols-3 gap-2 text-xs mt-3 text-center">
+        <div><div class="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-1 align-middle"></div>Positive ${report.sentiment.positive ?? 0}%</div>
+        <div><div class="w-3 h-3 rounded-full bg-slate-300 inline-block mr-1 align-middle"></div>Neutral ${report.sentiment.neutral ?? 0}%</div>
+        <div><div class="w-3 h-3 rounded-full bg-rose-500 inline-block mr-1 align-middle"></div>Negative ${report.sentiment.negative ?? 0}%</div>
+      </div>
+    </div>`);
+  right.appendChild(sentBox);
+
+  // Trending topics
+  if (report.trending_topics && report.trending_topics.length) {
+    const trending = el(`
+      <div class="bg-white border border-slate-200 rounded-2xl p-5">
+        <div class="text-sm font-semibold mb-3">Trending topics</div>
+        <div class="flex flex-wrap gap-2">
+          ${report.trending_topics.map((t,i) => `<span class="text-xs px-2.5 py-1 rounded-full ${i===0?'bg-indigo-100 text-indigo-700':'bg-slate-100 text-slate-700'}">${escapeHTML(t)}</span>`).join('')}
+        </div>
+      </div>`);
+    right.appendChild(trending);
+  }
+
+  // Voice of customer (mix from citations)
+  const allQuotes = [];
+  for (const pp of report.pain_points) {
+    for (const c of (pp.citations || []).slice(0, 2)) allQuotes.push(c);
+    if (allQuotes.length > 6) break;
+  }
+  if (allQuotes.length) {
+    const voc = el(`
+      <div class="bg-white border border-slate-200 rounded-2xl p-5">
+        <div class="text-sm font-semibold mb-3">Voice of customer</div>
+        <div class="space-y-3">
+          ${allQuotes.slice(0,6).map(c => `
+            <div class="text-sm border-l-2 border-indigo-300 pl-3 italic text-slate-700">
+              "${escapeHTML(c.content.length > 180 ? c.content.slice(0,180)+'…' : c.content)}"
+              ${c.user_label ? `<div class="not-italic text-xs text-slate-500 mt-1">— ${escapeHTML(c.user_label)}</div>` : ''}
+            </div>`).join('')}
+        </div>
+      </div>`);
+    right.appendChild(voc);
+  }
+
+  // Render donut chart after DOM
+  setTimeout(() => {
+    const canvas = $('#sentiment-chart');
+    if (!canvas) return;
+    if (sentimentChart) sentimentChart.destroy();
+    sentimentChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Positive', 'Neutral', 'Negative'],
+        datasets: [{
+          data: [report.sentiment.positive || 0, report.sentiment.neutral || 0, report.sentiment.negative || 0],
+          backgroundColor: ['#10b981', '#cbd5e1', '#f43f5e'],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: { legend: { display: false } },
+      },
+    });
+  }, 30);
+}
+
+// ============================================================
+//   PRD generation flow
+// ============================================================
+async function generatePRDFromInsight(insightId) {
+  toast('Generating PRD…');
+  try {
+    const prd = await API.post('/prd/from-insight/' + insightId);
+    state.currentPRDId = prd.id;
+    toast('PRD generated', 'success');
+    navigate('prds');
+    setTimeout(() => openPRD(prd.id), 50);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ============================================================
+//   QUERY VIEW
+// ============================================================
+function renderQuery() {
+  const root = $('#view-container');
+  root.innerHTML = '';
+  root.appendChild(clone('tpl-query'));
+
+  const sel = $('#query-dataset');
+  if (!state.datasets.length) {
+    sel.innerHTML = '<option>No datasets yet — upload one first</option>';
+    sel.disabled = true;
+    $('#query-submit').disabled = true;
+    return;
+  }
+  for (const d of state.datasets) sel.appendChild(el(`<option value="${d.id}">${escapeHTML(d.name)}</option>`));
+  sel.value = state.selectedDatasetId || state.datasets[0].id;
+  sel.addEventListener('change', () => state.selectedDatasetId = parseInt(sel.value, 10));
+
+  $('#query-submit').addEventListener('click', submitQuery);
+  $('#query-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitQuery(); });
+  $$('.query-suggest').forEach(b => b.addEventListener('click', () => {
+    $('#query-input').value = b.textContent;
+    submitQuery();
+  }));
+}
+
+async function submitQuery() {
+  const q = $('#query-input').value.trim();
+  if (!q) return;
+  const datasetId = parseInt($('#query-dataset').value, 10);
+  state.selectedDatasetId = datasetId;
+  const btn = $('#query-submit');
+  setButtonLoading(btn, true);
+  const results = $('#query-results');
+  results.innerHTML = `<div class="bg-white border border-slate-200 rounded-2xl p-8 text-center"><div class="spinner mx-auto mb-2"></div><div class="text-sm text-slate-600">Searching your feedback…</div></div>`;
+  try {
+    const ans = await API.post('/query/ask', { dataset_id: datasetId, question: q });
+    renderQueryAnswer(q, ans);
+  } catch (e) {
+    results.innerHTML = `<div class="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-4 text-sm">${escapeHTML(e.message)}</div>`;
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+function renderQueryAnswer(q, ans) {
+  const results = $('#query-results');
+  const node = el(`
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 fade-in">
+      <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Question</div>
+      <div class="font-medium mb-4">${escapeHTML(q)}</div>
+      <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Answer</div>
+      <p class="text-slate-800 leading-relaxed">${escapeHTML(ans.answer)}</p>
+      ${ans.key_points && ans.key_points.length ? `
+        <div class="mt-4">
+          <div class="text-xs text-slate-500 uppercase tracking-wide mb-2">Key points</div>
+          <ul class="list-disc list-inside space-y-1 text-sm text-slate-700">
+            ${ans.key_points.map(k => `<li>${escapeHTML(k)}</li>`).join('')}
+          </ul>
+        </div>` : ''}
+      ${ans.citations && ans.citations.length ? `
+        <div class="mt-5 pt-5 border-t border-slate-100">
+          <div class="text-xs text-slate-500 uppercase tracking-wide mb-3">${ans.citations.length} citation${ans.citations.length===1?'':'s'}</div>
+          <div class="space-y-3">
+            ${ans.citations.map(c => `
+              <blockquote class="border-l-2 border-indigo-300 pl-3 text-sm text-slate-700 italic">
+                "${escapeHTML(c.content)}"
+                ${c.user_label ? `<div class="not-italic text-xs text-slate-500 mt-1">— ${escapeHTML(c.user_label)}</div>` : ''}
+              </blockquote>`).join('')}
+          </div>
+        </div>` : ''}
+    </div>`);
+  results.innerHTML = '';
+  results.appendChild(node);
+}
+
+// ============================================================
+//   PRDs LIST + DETAIL
+// ============================================================
+async function renderPRDsList() {
+  const root = $('#view-container');
+  root.innerHTML = '';
+  root.appendChild(clone('tpl-prds'));
+  const list = $('#prds-list');
+  list.innerHTML = '<div class="text-sm text-slate-500">Loading…</div>';
+  try {
+    const prds = await API.get('/prd/');
+    list.innerHTML = '';
+    if (!prds.length) {
+      const empty = clone('tpl-empty');
+      $('[data-slot=title]', empty).textContent = 'No PRDs yet';
+      $('[data-slot=subtitle]', empty).textContent = 'Run an analysis on the dashboard, then click "Generate PRD" on any pain point.';
+      list.appendChild(empty);
+      return;
+    }
+    for (const p of prds) {
+      const card = el(`
+        <div class="bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 cursor-pointer transition" data-id="${p.id}">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="font-medium">${escapeHTML(p.title)}</div>
+              <div class="text-xs text-slate-500 mt-0.5">${fmtDate(p.created_at)}</div>
+              <div class="text-sm text-slate-600 mt-2 line-clamp-2">${escapeHTML(p.problem_statement.slice(0,180))}${p.problem_statement.length>180?'…':''}</div>
+            </div>
+            <div class="text-slate-400">→</div>
+          </div>
+        </div>`);
+      card.addEventListener('click', () => openPRD(p.id));
+      list.appendChild(card);
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="text-rose-600 text-sm">${escapeHTML(e.message)}</div>`;
+  }
+}
+
+async function openPRD(prdId) {
+  state.currentPRDId = prdId;
+  const root = $('#view-container');
+  root.innerHTML = '<div class="text-sm text-slate-500">Loading PRD…</div>';
+  try {
+    const [prd, tasks] = await Promise.all([
+      API.get('/prd/' + prdId),
+      API.get('/prd/' + prdId + '/tasks').catch(() => []),
+    ]);
+    root.innerHTML = '';
+    const node = clone('tpl-prd-detail');
+    $('[data-slot=title]', node).textContent = prd.title;
+    $('[data-slot=meta]', node).textContent = 'Created ' + fmtDate(prd.created_at);
+    $('[data-slot=problem]', node).textContent = prd.problem_statement;
+    $('[data-slot=who]', node).textContent = prd.who_affected;
+    fillUL($('[data-slot=metrics]', node), prd.success_metrics);
+    fillUL($('[data-slot=stories]', node), prd.user_stories);
+    fillUL($('[data-slot=ac]', node), prd.acceptance_criteria);
+
+    $('#prd-back', node).addEventListener('click', () => navigate('prds'));
+    $('#prd-export-pdf', node).addEventListener('click', () => downloadAuth('/api/prd/' + prdId + '/export.pdf'));
+    $('#prd-export-md', node).addEventListener('click', () => downloadAuth('/api/prd/' + prdId + '/export.md'));
+    $('#prd-gen-tasks', node).addEventListener('click', async () => {
+      const btn = $('#prd-gen-tasks', node);
+      setButtonLoading(btn, true);
+      try {
+        const t = await API.post('/prd/' + prdId + '/tasks');
+        renderTasks(t, node);
+        toast('Dev tasks generated', 'success');
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    if (tasks && tasks.length) renderTasks(tasks, node);
+
+    root.appendChild(node);
+  } catch (e) {
+    root.innerHTML = `<div class="text-rose-600 text-sm">${escapeHTML(e.message)}</div>`;
+  }
+}
+
+function fillUL(ul, items) {
+  ul.innerHTML = '';
+  if (!items || !items.length) {
+    ul.innerHTML = '<li class="text-slate-400">—</li>';
+    return;
+  }
+  for (const it of items) {
+    ul.appendChild(el(`<li class="text-slate-700">${escapeHTML(it)}</li>`));
+  }
+}
+
+function renderTasks(tasks, root) {
+  const sec = $('#prd-tasks-section', root);
+  const list = $('#prd-tasks-list', root);
+  sec.classList.remove('hidden');
+  list.innerHTML = '';
+  if (!tasks.length) {
+    list.innerHTML = '<div class="text-sm text-slate-500">No tasks yet.</div>';
+    return;
+  }
+  // Add download-as-list button
+  const dlBtn = el(`<button class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 mb-3">⬇️ Download tasks (.txt)</button>`);
+  dlBtn.addEventListener('click', () => downloadTasksTxt(tasks));
+  list.appendChild(dlBtn);
+
+  tasks.forEach((t, i) => {
+    const card = el(`
+      <div class="border border-slate-200 rounded-xl p-4">
+        <div class="flex items-start gap-3">
+          <div class="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-medium flex-shrink-0">${i+1}</div>
+          <div class="flex-1">
+            <div class="font-medium">${escapeHTML(t.title)}</div>
+            <p class="text-sm text-slate-600 mt-1 leading-relaxed">${escapeHTML(t.context)}</p>
+            ${t.acceptance_criteria && t.acceptance_criteria.length ? `
+              <div class="mt-2">
+                <div class="text-xs text-slate-500 mb-1">Acceptance criteria</div>
+                <ul class="list-disc list-inside text-sm text-slate-700 space-y-0.5">
+                  ${t.acceptance_criteria.map(c => `<li>${escapeHTML(c)}</li>`).join('')}
+                </ul>
+              </div>` : ''}
+          </div>
+        </div>
+      </div>`);
+    list.appendChild(card);
+  });
+}
+
+function downloadTasksTxt(tasks) {
+  const lines = [];
+  tasks.forEach((t, i) => {
+    lines.push(`### ${i+1}. ${t.title}`);
+    lines.push('');
+    lines.push(t.context || '');
+    if (t.acceptance_criteria && t.acceptance_criteria.length) {
+      lines.push('');
+      lines.push('Acceptance criteria:');
+      t.acceptance_criteria.forEach(c => lines.push(`- ${c}`));
+    }
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'dev-tasks.txt'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadAuth(path) {
+  const res = await fetch(path, { headers: { 'Authorization': 'Bearer ' + API.token() } });
+  if (!res.ok) { toast('Download failed', 'error'); return; }
+  const cd = res.headers.get('content-disposition') || '';
+  const m = cd.match(/filename="?([^"]+)"?/);
+  const filename = m ? m[1] : 'download';
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+//   ENTRYPOINT
+// ============================================================
+(async function init() {
+  if (API.token()) {
+    try { await bootApp(); }
+    catch { showAuth(); }
+  } else {
+    showAuth();
+  }
+})();
+</script>
+</body>
+</html>

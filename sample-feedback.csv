@@ -1,0 +1,26 @@
+user_email,feedback,plan
+alex@startup.io,"The mobile app crashes every time I try to upload a photo larger than 5MB. This is really frustrating because I'm a photographer.",Pro
+sam@example.com,"Loving the new dashboard! The dark mode is gorgeous. Keep it up.",Free
+jane@bigco.com,"Pricing page is super confusing. I couldn't tell if the Team plan included SSO. Spent 20 minutes reading and still unclear.",Free
+mike@dev.io,"The API rate limits are way too low for what we're paying. We hit the cap in the first hour every day.",Pro
+priya@growthco.in,"Why can't I export reports as PDF? CSV is fine but my CEO wants pretty PDFs and I have to manually screenshot everything.",Pro
+chen@techcorp.com,"Onboarding was excellent. The interactive tutorial made it really clear. Best onboarding I've seen in a SaaS tool.",Pro
+ben@indiehacker.dev,"App is unusably slow when I have more than 5000 records. Filtering takes 30+ seconds.",Pro
+dana@example.org,"Customer support replied in 12 minutes on a Sunday. Above and beyond. Resolved my issue in one email.",Team
+rohan@founderclub.in,"Mobile app crashes constantly. I've reinstalled it 3 times. Considering switching to a competitor.",Pro
+liu@asia.co,"Pricing in INR would be helpful for our Indian customers. Right now we have to convert everything from USD.",Team
+emma@startup.io,"The onboarding email sequence is too aggressive. 6 emails in 3 days felt spammy.",Free
+nikhil@b2b.co,"Integrations are limited. We use Linear and Notion and there's no native sync, only Zapier.",Team
+sara@ngo.org,"The free plan is genuinely useful — I've been a user for 8 months and recommend you to everyone.",Free
+omar@enterprise.com,"SOC 2 compliance docs were impossible to find. Took 3 emails to support to get them.",Team
+kim@studio.co,"Slow performance is a dealbreaker. I switch to your competitor after 5pm because their app stays fast.",Pro
+ravi@indianstartup.in,"Pricing in dollars makes the Pro plan feel like a luxury for us. Localized pricing would change my decision.",Free
+tara@solo.dev,"The new AI features are great but they hallucinate sometimes. Wish they cited sources.",Pro
+yuki@japan.co,"Login with Google was broken yesterday for 3 hours. No status page update. Very stressful during a launch.",Pro
+diego@scaleup.mx,"The mobile app is buggy. Photos don't upload. Reports don't render. Switched to web only.",Pro
+ola@bigfirm.no,"Loving the new keyboard shortcuts! Major productivity boost. Power users will love this.",Pro
+finn@tinyteam.com,"Confusing pricing. I couldn't understand the difference between Team and Pro until I emailed sales.",Free
+ines@growth.es,"Need an export-to-Notion button. Right now I copy-paste and it loses formatting.",Pro
+hassan@enterprise.co,"Your competitor offers SSO on the Team plan. You only offer it on Enterprise. Making us reconsider.",Team
+mei@startup.cn,"App keeps logging me out every few hours. Annoying when I'm in flow.",Pro
+luca@italy.co,"The dashboard is beautiful but I can't customize it. I want to hide widgets I don't use.",Pro
