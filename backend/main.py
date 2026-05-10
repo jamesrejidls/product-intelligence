@@ -1,13 +1,14 @@
 """
 Application entry point.
 - Loads .env
-- Initializes the SQLite database
+- Initializes the database (creates tables if they don't exist)
 - Mounts auth, intake, insights, query, PRD routers
 - Serves the static SPA frontend from /
 Run: uvicorn backend.main:app --reload --port 8000
 """
 import os
 import pathlib
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 load_dotenv()  # MUST happen before importing anything that reads env at import time
@@ -25,21 +26,27 @@ from .query import router as query_router
 from .prd import router as prd_router
 
 
-app = FastAPI(title="Product Intelligence", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Runs once on startup: ensures tables exist (idempotent — safe to run on every deploy).
+    init_db()
+    yield
+    # No teardown needed — SQLAlchemy handles connection cleanup.
 
-# CORS — allow everything in dev. Lock this down in production.
+
+app = FastAPI(title="Product Intelligence", version="1.0.0", lifespan=lifespan)
+
+# CORS — allow everything by default. Tighten via ALLOWED_ORIGINS env var in production
+# (comma-separated list of origins) once you know your final deployed URL.
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
+allowed_origins = [o.strip() for o in allowed_origins_env.split(",")] if allowed_origins_env != "*" else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def _startup():
-    init_db()
 
 
 @app.get("/api/health")
