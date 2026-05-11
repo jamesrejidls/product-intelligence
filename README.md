@@ -32,16 +32,12 @@ Plus PDF and Markdown export of any PRD.
 - **Database:** SQLite by default — switch `DATABASE_URL` in `.env` for Postgres
 - **AI provider:** Google Gemini (free tier — no credit card required)
 
-> Why these choices? Two reasons. First, the spec asked for a working product, and SQLite + a single Python server means you can run this with one command. Second, the AI quality depends on the prompts, not the framework — so the engineering choices that matter live in `backend/llm_client.py`.
-
 ---
 
 ## Prerequisites
 
 1. **Python 3.10 or newer** — check with `python --version` (Windows) or `python3 --version` (Mac/Linux)
 2. **A Google Gemini API key** — get one free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). No credit card needed. Free tier is enough to test the app end-to-end.
-
-That's it. No Node, no Postgres, no Redis, no Docker.
 
 ---
 
