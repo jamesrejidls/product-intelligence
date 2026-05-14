@@ -2,6 +2,8 @@
 
 > Upload customer feedback. Get the top 5 pain points, a sentiment dashboard, a full PRD, and engineering tickets — all powered by AI.
 
+**🔗 Live demo:** [Open the live app](https://product-intelligence-sxmv.onrender.com)
+
 This is the full implementation of the brief: a single application that turns raw customer voice into structured product intelligence.
 
 ---
@@ -32,8 +34,6 @@ Plus PDF and Markdown export of any PRD.
 - **Database:** SQLite by default — switch `DATABASE_URL` in `.env` for Postgres
 - **AI provider:** Google Gemini (free tier — no credit card required)
 
-> Why these choices? Two reasons. First, the spec asked for a working product, and SQLite + a single Python server means you can run this with one command. Second, the AI quality depends on the prompts, not the framework — so the engineering choices that matter live in `backend/llm_client.py`.
-
 ---
 
 ## Prerequisites
@@ -42,9 +42,7 @@ Plus PDF and Markdown export of any PRD.
 2. **A Google Gemini API key** — get one free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). No credit card needed. Free tier is enough to test the app end-to-end.
 3. **A Clerk account** — sign up free at [clerk.com](https://clerk.com), create an application (pick Email + Google as sign-in methods), and copy the Publishable Key and Secret Key from the API Keys page. Free tier covers 50,000 monthly users.
 
-That's it. No Node, no Postgres, no Redis, no Docker.
-
-> **Heads-up on the deployment files in this repo.** You'll see `render.yaml`, `Procfile`, and `runtime.txt` at the project root. These are only used when deploying to Render (see "Going to production" below). They are completely ignored when running locally — you can safely leave them alone, and you don't need a Render account to run the app on your laptop.
+> **Heads-up on the deployment files in this repo.** You'll see `render.yaml`, `Procfile`, and `runtime.txt` at the project root. These are only used when deploying to Render. They are completely ignored when running locally — you can safely leave them alone.
 
 ---
 
@@ -282,21 +280,6 @@ This is built as a hackathon-grade MVP with production-friendly seams:
 - **Add background workers** (Celery/RQ) for analysis runs that exceed 30s
 
 Note: SQLite does not work on ephemeral cloud platforms like Render because the local filesystem gets wiped on every redeploy. Switch to Postgres before deploying.
-
-### Deploying to Render (one-click)
-
-This repo ships with a `render.yaml` Blueprint for free-tier deployment to Render:
-
-1. Sign up at [render.com](https://render.com) using GitHub.
-2. In the dashboard, click **+ New → Blueprint**.
-3. Connect this repository. Render reads `render.yaml` and provisions both the web service and a free Postgres database.
-4. When prompted, paste your `GEMINI_API_KEY`. Other env vars are auto-configured.
-5. Wait 5–8 minutes for the first build. You'll get a public URL like `https://product-intelligence-xxxx.onrender.com`.
-
-**Notes:**
-- Render's free Postgres expires after 90 days. Either pay for permanent Postgres, recreate the database, or migrate to a permanent free provider (Neon, Supabase).
-- Render's free web tier sleeps after 15 minutes of inactivity. First request after sleep takes 30–60 seconds. Use a free uptime monitor (e.g., UptimeRobot pinging `/api/health` every 5 minutes) to keep it warm.
-- Gemini's free API tier has geographic restrictions. Use the `oregon` or `frankfurt` Render regions, not `singapore` (Gemini API blocks Singapore data centers as of writing).
 
 ---
 
