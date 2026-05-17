@@ -160,7 +160,7 @@ From any PRD page:
 ## Project layout
 
 ```
-product-intelligence/
+peregryn/
 ├── backend/
 │   ├── __init__.py
 │   ├── main.py              ← FastAPI app + serves the frontend
